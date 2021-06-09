@@ -135,7 +135,7 @@ u-boot-atf-tee.bin: u-boot.bin bl31.bin tee.bin
 
 .PHONY: clean
 clean:
-	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG)
+	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-iwg34s.itb u-boot-iwg34s.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-iwg37s.itb u-boot-iwg37s.its u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG)
 
 dtbs = evk.dtb
 $(dtbs):
@@ -148,6 +148,19 @@ u-boot.itb: $(dtbs)
 	DEK_BLOB_LOAD_ADDR=$(DEK_BLOB_LOAD_ADDR) TEE_LOAD_ADDR=$(TEE_LOAD_ADDR) ATF_LOAD_ADDR=$(ATF_LOAD_ADDR) ./mkimage_fit_atf.sh $(dtbs) > u-boot.its
 	./mkimage_uboot -E -p 0x3000 -f u-boot.its u-boot.itb
 	@rm -f u-boot.its $(dtbs)
+
+# IWG34S: Support for IWG34S platform
+dtbs_iwg34s = iwg34s.dtb
+$(dtbs_iwg34s):
+	./$(DTB_PREPROC) $(PLAT)-iwg34s.dtb $(dtbs_iwg34s)
+
+u-boot-iwg34s.itb: $(dtbs_iwg34s)
+	./$(PAD_IMAGE) tee.bin
+	./$(PAD_IMAGE) bl31.bin
+	./$(PAD_IMAGE) u-boot-nodtb.bin $(dtbs_iwg34s)
+	DEK_BLOB_LOAD_ADDR=$(DEK_BLOB_LOAD_ADDR) TEE_LOAD_ADDR=$(TEE_LOAD_ADDR) ATF_LOAD_ADDR=$(ATF_LOAD_ADDR) ./mkimage_fit_atf.sh $(dtbs_iwg34s) > u-boot-iwg34s.its
+	./mkimage_uboot -E -p 0x3000 -f u-boot-iwg34s.its u-boot-iwg34s.itb
+	@rm -f u-boot.its $(dtbs_iwg34s)
 
 dtbs_ddr3l = valddr3l.dtb
 $(dtbs_ddr3l):
@@ -185,6 +198,18 @@ u-boot-ddr4.itb: $(dtbs_ddr4)
 	./mkimage_uboot -E -p 0x3000 -f u-boot-ddr4.its u-boot-ddr4.itb
 	@rm -f u-boot.its $(dtbs_ddr4)
 
+# IWG37S: Support for IWG37S Nano Platform
+dtbs_iwg37s = iwg37s.dtb
+$(dtbs_iwg37s):
+	./$(DTB_PREPROC) $(PLAT)-iwg37s.dtb $(dtbs_iwg37s)
+
+u-boot-iwg37s.itb: $(dtbs_iwg37s)
+	./$(PAD_IMAGE) bl31.bin
+	./$(PAD_IMAGE) u-boot-nodtb.bin $(dtbs_iwg37s)
+	DEK_BLOB_LOAD_ADDR=$(DEK_BLOB_LOAD_ADDR) TEE_LOAD_ADDR=$(TEE_LOAD_ADDR) ATF_LOAD_ADDR=$(ATF_LOAD_ADDR) ./mkimage_fit_atf.sh $(dtbs_iwg37s) > u-boot-iwg37s.its
+	./mkimage_uboot -E -p 0x3000 -f u-boot-iwg37s.its u-boot-iwg37s.itb
+	@rm -f u-boot.its $(dtbs_iwg37s)
+
 dtbs_ddr4_evk = evkddr4.dtb
 $(dtbs_ddr4_evk):
 	./$(DTB_PREPROC) $(PLAT)-ddr4-evk.dtb $(dtbs_ddr4_evk)
@@ -200,6 +225,9 @@ u-boot-ddr4-evk.itb: $(dtbs_ddr4_evk)
 ifeq ($(HDMI),yes)
 flash_evk: $(MKIMG) signed_hdmi_imx8m.bin u-boot-spl-ddr.bin u-boot.itb
 	./mkimage_imx8 -fit -signed_hdmi signed_hdmi_imx8m.bin -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot.itb 0x40200000 0x60000 -out $(OUTIMG)
+
+flash_iwg34s: $(MKIMG) signed_hdmi_imx8m.bin u-boot-spl-ddr.bin u-boot-iwg34s.itb
+	./mkimage_imx8 -fit -signed_hdmi signed_hdmi_imx8m.bin -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot-iwg34s.itb 0x40200000 0x60000 -out $(OUTIMG)
 
 flash_evk_dual_bootloader: $(MKIMG) signed_hdmi_imx8m.bin u-boot-spl-ddr.bin u-boot.itb
 	./mkimage_imx8 -fit -signed_hdmi signed_hdmi_imx8m.bin -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -out $(OUTIMG)
@@ -220,6 +248,12 @@ flash_ddr4_val: $(MKIMG) signed_hdmi_imx8m.bin u-boot-spl-ddr4.bin u-boot-ddr4.i
 else
 flash_evk: flash_evk_no_hdmi
 
+# IWG34S: Support For IWG34M Platform
+flash_iwg34s: flash_iwg34s_no_hdmi
+
+# IWG37M: Support For IWG37M Platform
+flash_iwg37s: flash_iwg37s_no_hdmi
+
 flash_evk_emmc_fastboot: flash_evk_no_hdmi_emmc_fastboot
 
 flash_ddr4_evk: flash_ddr4_evk_no_hdmi
@@ -238,6 +272,14 @@ flash_evk_no_hdmi: $(MKIMG) u-boot-spl-ddr.bin u-boot.itb
 flash_evk_no_hdmi_dual_bootloader: $(MKIMG) u-boot-spl-ddr.bin u-boot.itb
 	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -out $(OUTIMG)
 	./mkimage_imx8 -fit_ivt u-boot.itb 0x40200000 0x0 -out u-boot-ivt.itb
+
+# IWG34S: Support for IWG34S Platform #
+flash_iwg34s_no_hdmi: $(MKIMG) u-boot-spl-ddr.bin u-boot-iwg34s.itb
+	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot-iwg34s.itb 0x40200000 0x60000 -out $(OUTIMG)
+
+# IWG37S: Support for IWG37S Nano Platform
+flash_iwg37s_no_hdmi: $(MKIMG) u-boot-spl-ddr.bin u-boot-iwg37s.itb
+	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot-iwg37s.itb 0x40200000 0x60000 -out $(OUTIMG)
 
 flash_evk_no_hdmi_emmc_fastboot: $(MKIMG) u-boot-spl-ddr.bin u-boot.itb
 	./mkimage_imx8 -version $(VERSION) -dev emmc_fastboot -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot.itb 0x40200000 0x60000 -out $(OUTIMG)
@@ -275,6 +317,12 @@ flash_hdmi_spl_uboot: flash_evk
 flash_dp_spl_uboot: flash_dp_evk
 
 flash_spl_uboot: flash_evk_no_hdmi
+
+# IWG34S: Support for IWG34S Platform
+flash_iwg34s_uboot: flash_iwg34s_no_hdmi
+
+# IWG37S: Support for IWG37S Platform
+flash_iwg37s_uboot: flash_iwg37s_no_hdmi
 
 print_fit_hab: u-boot-nodtb.bin bl31.bin $(dtbs)
 	./$(PAD_IMAGE) tee.bin
