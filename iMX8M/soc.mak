@@ -135,7 +135,7 @@ u-boot-atf-tee.bin: u-boot.bin bl31.bin tee.bin
 
 .PHONY: clean
 clean:
-	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG)
+	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-iwg40m.itb u-boot-iwg40m.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG)
 
 dtbs = evk.dtb
 $(dtbs):
@@ -148,6 +148,20 @@ u-boot.itb: $(dtbs)
 	DEK_BLOB_LOAD_ADDR=$(DEK_BLOB_LOAD_ADDR) TEE_LOAD_ADDR=$(TEE_LOAD_ADDR) ATF_LOAD_ADDR=$(ATF_LOAD_ADDR) ./mkimage_fit_atf.sh $(dtbs) > u-boot.its
 	./mkimage_uboot -E -p 0x3000 -f u-boot.its u-boot.itb
 	@rm -f u-boot.its $(dtbs)
+
+
+# IWG40M: Support for IWG40M Platform
+dtbs_iwg40m = iwg40m.dtb
+$(dtbs_iwg40m):
+	./$(DTB_PREPROC) $(PLAT)-iwg40m.dtb $(dtbs_iwg40m)
+
+u-boot-iwg40m.itb: $(dtbs_iwg40m)
+	./$(PAD_IMAGE) tee.bin
+	./$(PAD_IMAGE) bl31.bin
+	./$(PAD_IMAGE) u-boot-nodtb.bin $(dtbs_iwg40m)
+	DEK_BLOB_LOAD_ADDR=$(DEK_BLOB_LOAD_ADDR) TEE_LOAD_ADDR=$(TEE_LOAD_ADDR) ATF_LOAD_ADDR=$(ATF_LOAD_ADDR) ./mkimage_fit_atf.sh $(dtbs_iwg40m) > u-boot-iwg40m.its
+	./mkimage_uboot -E -p 0x3000 -f u-boot-iwg40m.its u-boot-iwg40m.itb
+	@rm -f u-boot-iwg40m.its $(dtbs_iwg40m)
 
 dtbs_ddr3l = valddr3l.dtb
 $(dtbs_ddr3l):
@@ -220,6 +234,8 @@ flash_ddr4_val: $(MKIMG) signed_hdmi_imx8m.bin u-boot-spl-ddr4.bin u-boot-ddr4.i
 else
 flash_evk: flash_evk_no_hdmi
 
+flash_iwg40m: flash_iwg40m_no_hdmi
+
 flash_evk_emmc_fastboot: flash_evk_no_hdmi_emmc_fastboot
 
 flash_ddr4_evk: flash_ddr4_evk_no_hdmi
@@ -234,6 +250,10 @@ endif
 
 flash_evk_no_hdmi: $(MKIMG) u-boot-spl-ddr.bin u-boot.itb
 	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot.itb 0x40200000 0x60000 -out $(OUTIMG)
+
+# IWG40M: Support for IWG40M Platform
+flash_iwg40m_no_hdmi: $(MKIMG) u-boot-spl-ddr.bin u-boot-iwg40m.itb
+	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot-iwg40m.itb 0x40200000 0x60000 -out $(OUTIMG)
 
 flash_evk_no_hdmi_dual_bootloader: $(MKIMG) u-boot-spl-ddr.bin u-boot.itb
 	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -out $(OUTIMG)
@@ -275,6 +295,9 @@ flash_hdmi_spl_uboot: flash_evk
 flash_dp_spl_uboot: flash_dp_evk
 
 flash_spl_uboot: flash_evk_no_hdmi
+
+# IWG40M: Support for IWG40M Platform
+flash_iwg40m_uboot: flash_iwg40m_no_hdmi
 
 print_fit_hab: u-boot-nodtb.bin bl31.bin $(dtbs)
 	./$(PAD_IMAGE) tee.bin
