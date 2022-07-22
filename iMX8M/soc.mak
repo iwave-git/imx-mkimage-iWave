@@ -138,7 +138,7 @@ u-boot-atf-tee.bin: u-boot.bin bl31.bin $(TEE)
 
 .PHONY: clean
 clean:
-	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG)
+	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-iwg.itb u-boot-iwg.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG)
 
 dtb = evk.dtb
 $(dtb):
@@ -151,6 +151,19 @@ u-boot.itb: $(dtb)
 	BL32=$(TEE) DEK_BLOB_LOAD_ADDR=$(DEK_BLOB_LOAD_ADDR) TEE_LOAD_ADDR=$(TEE_LOAD_ADDR) ATF_LOAD_ADDR=$(ATF_LOAD_ADDR) ./mkimage_fit_atf.sh $(dtb) > u-boot.its
 	./mkimage_uboot -E -p 0x3000 -f u-boot.its u-boot.itb
 	@rm -f u-boot.its $(dtb)
+
+#IWG34/IWG37: Support for IWG platform
+dtb = iwg.dtb
+$(dtb):
+	./$(DTB_PREPROC) $(PLAT)-iwg.dtb $(dtb) $(dtbs)
+
+u-boot-iwg.itb: $(dtb)
+	./$(PAD_IMAGE) $(TEE)
+	./$(PAD_IMAGE) bl31.bin
+	./$(PAD_IMAGE) u-boot-nodtb.bin $(dtb)
+	BL32=$(TEE) DEK_BLOB_LOAD_ADDR=$(DEK_BLOB_LOAD_ADDR) TEE_LOAD_ADDR=$(TEE_LOAD_ADDR) ATF_LOAD_ADDR=$(ATF_LOAD_ADDR) ./mkimage_fit_atf.sh $(dtb) > u-boot-iwg.its
+	./mkimage_uboot -E -p 0x3000 -f u-boot-iwg.its u-boot-iwg.itb
+	@rm -f u-boot-iwg.its $(dtb)
 
 dtb_ddr3l = valddr3l.dtb
 $(dtb_ddr3l):
@@ -223,6 +236,9 @@ flash_ddr4_val: $(MKIMG) signed_hdmi_imx8m.bin u-boot-spl-ddr4.bin u-boot-ddr4.i
 else
 flash_evk: flash_evk_no_hdmi
 
+# IWG34/IWG37: Support for IWG Platform
+flash_iwg: flash_iwg_no_hdmi
+
 flash_evk_emmc_fastboot: flash_evk_no_hdmi_emmc_fastboot
 
 flash_ddr4_evk: flash_ddr4_evk_no_hdmi
@@ -242,6 +258,10 @@ endif
 
 flash_evk_no_hdmi: $(MKIMG) u-boot-spl-ddr.bin u-boot.itb
 	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot.itb 0x40200000 0x60000 -out $(OUTIMG)
+
+# IWG34/IWG37: Support for IWG Platform
+flash_iwg_no_hdmi: $(MKIMG) u-boot-spl-ddr.bin u-boot-iwg.itb
+	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -second_loader u-boot-iwg.itb 0x40200000 0x60000 -out $(OUTIMG)
 
 flash_evk_no_hdmi_dual_bootloader: $(MKIMG) u-boot-spl-ddr.bin u-boot.itb
 	./mkimage_imx8 -version $(VERSION) -fit -loader u-boot-spl-ddr.bin $(SPL_LOAD_ADDR) -out $(OUTIMG)
